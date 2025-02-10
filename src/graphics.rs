@@ -55,7 +55,7 @@ where
 
         Ok(())
     }
-    pub async fn fill_solid_in_context(
+    pub fn fill_solid_in_context(
         &mut self,
         area: &Rectangle,
         color: Rgb565,
@@ -70,7 +70,6 @@ where
             )
             .unwrap();
 
-        self.di.write_command(WriteMemoryStart).await?;
         Ok(())
     }
 }
