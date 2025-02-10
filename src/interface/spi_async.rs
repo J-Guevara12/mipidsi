@@ -1,7 +1,8 @@
+use defmt::info;
 use embedded_hal::digital::OutputPin;
 use embedded_hal_async::spi::SpiDevice;
 
-use super::{AsyncInterface, FlushingInterface, InterfaceKind, SpiError};
+use super::{AsyncInterface, ContextInterface, FlushingInterface, InterfaceKind, SpiError};
 
 /// Async Spi interface, including a dma buffer
 ///
@@ -10,7 +11,7 @@ use super::{AsyncInterface, FlushingInterface, InterfaceKind, SpiError};
 pub struct SpiInterfaceAsync<'a, SPI, DC> {
     spi: SPI,
     dc: DC,
-    buffer: &'a mut [u8],
+    pub(crate) buffer: &'a mut [u8],
     index: usize,
 }
 
@@ -91,12 +92,33 @@ where
     DC: OutputPin,
 {
     async fn flush(&mut self) -> Result<(), Self::Error> {
-        self.spi
-            .write(&self.buffer[..self.index])
-            .await
-            .map_err(SpiError::Spi)?;
+        self.spi.write(&self.buffer).await.map_err(SpiError::Spi)?;
 
         self.index = 0;
+
+        Ok(())
+    }
+}
+
+impl<SPI, DC> ContextInterface for SpiInterfaceAsync<'_, SPI, DC>
+where
+    SPI: SpiDevice,
+    DC: OutputPin,
+{
+    fn send_repeated_pixel_in_context<const N: usize>(
+        &mut self,
+        pixel: [u8; N],
+        y0: usize,
+        x0: usize,
+        height: usize,
+        width: usize,
+    ) -> Result<(), SpiError<SPI::Error, DC::Error>> {
+        for y in y0..(height + y0) {
+            for chunk in self.buffer[(y * 240 + x0) * 2..(y * 240 + width + x0) * 2].chunks_mut(N) {
+                let chunk: &mut [u8; N] = chunk.try_into().unwrap();
+                *chunk = pixel;
+            }
+        }
 
         Ok(())
     }

@@ -86,6 +86,18 @@ pub trait FlushingInterface: AsyncInterface {
     fn flush(&mut self) -> impl core::future::Future<Output = Result<(), Self::Error>>;
 }
 
+pub trait ContextInterface: AsyncInterface {
+    /// Flushes stored pixel data to the interface
+    fn send_repeated_pixel_in_context<const N: usize>(
+        &mut self,
+        pixel: [u8; N],
+        y0: usize,
+        x0: usize,
+        height: usize,
+        width: usize,
+    ) -> Result<(), Self::Error>;
+}
+
 impl<T: Interface> Interface for &mut T {
     type Word = T::Word;
     type Error = T::Error;
@@ -112,7 +124,7 @@ impl<T: Interface> Interface for &mut T {
     }
 }
 
-fn rgb565_to_bytes(pixel: Rgb565) -> [u8; 2] {
+pub fn rgb565_to_bytes(pixel: Rgb565) -> [u8; 2] {
     embedded_graphics_core::pixelcolor::raw::ToBytes::to_be_bytes(pixel)
 }
 fn rgb565_to_u16(pixel: Rgb565) -> [u16; 1] {
